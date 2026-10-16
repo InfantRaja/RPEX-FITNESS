@@ -50,7 +50,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || process.env.NODE_ENV === 'development') {
       return callback(null, true);
     }
     return callback(new Error('Not allowed by CORS'));
@@ -186,7 +186,7 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await connectDB();
-    app.listen(PORT, () => {
+    app.listen(Number(PORT), '0.0.0.0', () => {
       console.log(`🚀 REPX Tracker Server running on port ${PORT}`);
       console.log(`📡 Environment: ${process.env.NODE_ENV}`);
       console.log(`🔗 Client URL: ${process.env.CLIENT_URL}`);
