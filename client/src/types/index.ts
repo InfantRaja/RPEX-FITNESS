@@ -278,16 +278,19 @@ export interface PlannedMeal {
 export interface DatabaseFoodItem {
   id: string;
   name: string;
-  category: 'protein' | 'carbs' | 'fats' | 'dairy' | 'vegetables' | 'fruits' | 'indian_staple' | 'beverage';
+  category: string;
   servingSize: number;
   servingUnit: string;
   calories: number;
   protein: number;
   carbs: number;
   fat: number;
-  dietaryPreference: 'vegetarian' | 'vegan' | 'eggetarian' | 'non_vegetarian';
-  isAffordable: boolean;
-  region: 'indian' | 'global';
+  fiber?: number;
+  dietType?: string[];
+  dietaryPreference?: string;
+  isBudgetFriendly?: boolean;
+  isAffordable?: boolean;
+  region?: string;
   commonMeasure?: string;
 }
 

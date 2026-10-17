@@ -250,18 +250,26 @@ router.post('/meal-plan/log-meal', async (req: AuthRequest, res: Response, next:
 // GET /api/nutrition/foods - Search verified food database
 router.get('/foods', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { q = '', category, dietPreference, budgetOnly } = req.query;
+    const { q = '', query = '', category, dietPreference, dietaryPreference, budgetOnly, isAffordable } = req.query;
+    const searchTerm = (q || query || '') as string;
 
-    const foods = searchFoods(q as string, {
+    const foods = searchFoods(searchTerm, {
       category: category as string,
-      dietPreference: dietPreference as string,
-      isBudgetFriendly: budgetOnly === 'true',
+      dietPreference: (dietPreference || dietaryPreference) as string,
+      isBudgetFriendly: budgetOnly === 'true' || isAffordable === 'true',
     });
+
+    const normalized = foods.map(f => ({
+      ...f,
+      dietaryPreference: f.dietType?.[0] || 'vegetarian',
+      isAffordable: f.isBudgetFriendly,
+      commonMeasure: f.servingUnit,
+    }));
 
     res.json({
       success: true,
-      count: foods.length,
-      data: foods,
+      count: normalized.length,
+      data: normalized,
     });
   } catch (error) {
     next(error);

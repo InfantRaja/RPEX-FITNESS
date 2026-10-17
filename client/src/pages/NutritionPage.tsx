@@ -613,7 +613,7 @@ const NutritionPage: React.FC = () => {
                           </div>
                           <div>
                             <p className="text-sm font-bold text-text-primary capitalize">
-                              {meal.mealType.replace(/_/g, ' ')}
+                              {(meal.mealType || 'meal').replace(/_/g, ' ')}
                             </p>
                             <p className="text-xs text-text-muted">
                               {meal.foods?.length || 0} items logged
@@ -882,15 +882,20 @@ const NutritionPage: React.FC = () => {
                 <Search className="w-8 h-8 text-accent animate-spin mx-auto mb-2" />
                 Searching verified nutrition database...
               </div>
-            ) : foodsData && foodsData.length > 0 ? (
+            ) : Array.isArray(foodsData) && foodsData.length > 0 ? (
               foodsData.map((item: DatabaseFoodItem) => {
                 const currentServing = selectedPortions[item.id] || item.servingSize;
-                const ratio = currentServing / item.servingSize;
-                const cal = Math.round(item.calories * ratio);
-                const prot = Number((item.protein * ratio).toFixed(1));
-                const carbs = Number((item.carbs * ratio).toFixed(1));
-                const fat = Number((item.fat * ratio).toFixed(1));
+                const ratio = currentServing / (item.servingSize || 100);
+                const cal = Math.round((item.calories || 0) * ratio);
+                const prot = Number(((item.protein || 0) * ratio).toFixed(1));
+                const carbs = Number(((item.carbs || 0) * ratio).toFixed(1));
+                const fat = Number(((item.fat || 0) * ratio).toFixed(1));
                 const targetMeal = selectedTargetMeal[item.id] || 'lunch';
+
+                const isBudget = item.isBudgetFriendly ?? item.isAffordable;
+                const dietText = Array.isArray(item.dietType)
+                  ? item.dietType.join(', ')
+                  : (item.dietaryPreference || item.category || 'General');
 
                 return (
                   <Card key={item.id} className="flex flex-col justify-between border-border hover:border-accent/40 transition-all">
@@ -899,14 +904,14 @@ const NutritionPage: React.FC = () => {
                         <div>
                           <div className="flex items-center gap-1.5">
                             <h3 className="font-bold text-text-primary text-sm">{item.name}</h3>
-                            {item.isAffordable && (
+                            {isBudget && (
                               <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-accent/20 text-accent">
                                 Budget
                               </span>
                             )}
                           </div>
                           <span className="text-[11px] text-text-muted capitalize">
-                            {item.dietaryPreference.replace(/_/g, ' ')} • {item.commonMeasure || `${item.servingSize}${item.servingUnit}`}
+                            {dietText.replace(/_/g, ' ')} • {item.commonMeasure || `${item.servingSize}${item.servingUnit || 'g'}`}
                           </span>
                         </div>
                         <span className="text-sm font-black text-text-primary">{cal} kcal</span>
