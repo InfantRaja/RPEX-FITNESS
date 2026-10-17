@@ -147,15 +147,19 @@ export interface Workout {
 export interface SplitDayExercise {
   name: string;
   category?: 'strength' | 'cardio' | 'flexibility' | 'sports' | 'other';
+  sets?: number;
   targetSets?: number;
+  reps?: string | number;
   targetReps?: number;
   targetWeight?: number;
+  muscleGroup?: string;
 }
 
 export interface SplitDay {
   dayNumber: number;
   name: string;
-  type: 'strength' | 'cardio' | 'hiit' | 'yoga' | 'sports' | 'other' | 'rest';
+  type?: 'strength' | 'cardio' | 'hiit' | 'yoga' | 'sports' | 'other' | 'rest';
+  muscleGroups?: string[];
   targetMuscleGroups?: string[];
   exercises: SplitDayExercise[];
   notes?: string;
@@ -169,6 +173,7 @@ export interface Split {
   daysPerWeek?: number;
   isActive: boolean;
   isPreset: boolean;
+  level?: 'beginner' | 'intermediate' | 'advanced' | 'pro' | string;
   days: SplitDay[];
   createdAt: string;
   updatedAt: string;

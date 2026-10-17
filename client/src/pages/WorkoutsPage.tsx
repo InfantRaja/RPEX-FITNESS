@@ -527,18 +527,32 @@ const WorkoutsPage: React.FC = () => {
     setIsTimerActive(true);
 
     const prefilledExercises = (day.exercises && day.exercises.length > 0)
-      ? day.exercises.map(ex => ({
-          name: ex.name,
-          category: ex.category || 'strength',
-          muscleGroups: day.targetMuscleGroups || [],
-          notes: '',
-          sets: Array.from({ length: ex.targetSets || 3 }).map((_, i) => ({
-            setNumber: i + 1,
-            reps: ex.targetReps || 10,
-            weight: ex.targetWeight || 0,
-            completed: true,
-          })),
-        }))
+      ? day.exercises.map(ex => {
+          let defaultReps = 10;
+          if (typeof ex.reps === 'number') {
+            defaultReps = ex.reps;
+          } else if (typeof ex.reps === 'string') {
+            const match = ex.reps.match(/\d+/);
+            if (match) defaultReps = parseInt(match[0], 10);
+          } else if (ex.targetReps) {
+            defaultReps = ex.targetReps;
+          }
+
+          const numSets = ex.sets || ex.targetSets || 3;
+
+          return {
+            name: ex.name,
+            category: ex.category || 'strength',
+            muscleGroups: ex.muscleGroup ? [ex.muscleGroup] : (day.muscleGroups || day.targetMuscleGroups || []),
+            notes: typeof ex.reps === 'string' ? `Target: ${ex.reps} reps` : '',
+            sets: Array.from({ length: numSets }).map((_, i) => ({
+              setNumber: i + 1,
+              reps: defaultReps,
+              weight: ex.targetWeight || 0,
+              completed: true,
+            })),
+          };
+        })
       : [{
           name: '',
           category: 'strength',
@@ -747,10 +761,21 @@ const WorkoutsPage: React.FC = () => {
                 <Zap className="w-5 h-5 fill-accent" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-base font-bold text-text-primary">
                     Active Split: {activeSplit.name}
                   </h3>
+                  {activeSplit.level && (
+                    <span className={cn(
+                      "badge text-[10px] font-bold uppercase px-2 py-0.5",
+                      activeSplit.level === 'beginner' && "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
+                      activeSplit.level === 'intermediate' && "bg-blue-500/15 text-blue-400 border border-blue-500/30",
+                      activeSplit.level === 'advanced' && "bg-purple-500/15 text-purple-400 border border-purple-500/30",
+                      activeSplit.level === 'pro' && "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                    )}>
+                      {activeSplit.level}
+                    </span>
+                  )}
                   <span className="badge bg-accent-muted text-accent font-bold text-[10px] px-2 py-0.5">
                     {activeSplit.daysPerWeek || activeSplit.days?.length || 4} DAYS/WEEK
                   </span>
@@ -774,7 +799,7 @@ const WorkoutsPage: React.FC = () => {
           </div>
 
           {/* Routine Days Grid / Carousel */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
             {(activeSplit.days || []).map((day, dIdx) => (
               <div
                 key={dIdx}
@@ -792,9 +817,9 @@ const WorkoutsPage: React.FC = () => {
 
                   <h4 className="font-bold text-text-primary text-sm mt-1">{day.name}</h4>
 
-                  {day.targetMuscleGroups && day.targetMuscleGroups.length > 0 && (
+                  {((day.targetMuscleGroups && day.targetMuscleGroups.length > 0) || (day.muscleGroups && day.muscleGroups.length > 0)) && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {day.targetMuscleGroups.map(muscle => (
+                      {(day.muscleGroups || day.targetMuscleGroups || []).map(muscle => (
                         <span key={muscle} className="text-[10px] bg-background text-text-muted px-1.5 py-0.5 rounded border border-border">
                           {muscle}
                         </span>
@@ -804,16 +829,20 @@ const WorkoutsPage: React.FC = () => {
 
                   {/* Exercises mini-list preview */}
                   {day.exercises && day.exercises.length > 0 && (
-                    <div className="mt-2.5 space-y-1 text-[11px] text-text-muted">
-                      {day.exercises.slice(0, 3).map((ex, eIdx) => (
-                        <div key={eIdx} className="truncate text-text-secondary flex items-center gap-1">
-                          <span className="w-1 h-1 rounded-full bg-accent/60" />
-                          <span className="truncate">{ex.name}</span>
-                          <span className="text-text-muted font-mono text-[10px]">({ex.targetSets}×{ex.targetReps})</span>
+                    <div className="mt-2.5 space-y-1.5 text-[11px] text-text-muted">
+                      {day.exercises.slice(0, 4).map((ex, eIdx) => (
+                        <div key={eIdx} className="truncate text-text-secondary flex items-center justify-between gap-1">
+                          <span className="truncate flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-accent/60 shrink-0" />
+                            <span className="truncate" title={ex.name}>{ex.name}</span>
+                          </span>
+                          <span className="text-text-muted font-mono text-[10px] shrink-0">
+                            {ex.sets ?? ex.targetSets ?? 3}×{ex.reps ?? ex.targetReps ?? 10}
+                          </span>
                         </div>
                       ))}
-                      {day.exercises.length > 3 && (
-                        <p className="text-[10px] text-accent/80 font-medium">+{day.exercises.length - 3} more</p>
+                      {day.exercises.length > 4 && (
+                        <p className="text-[10px] text-accent/80 font-medium">+{day.exercises.length - 4} more</p>
                       )}
                     </div>
                   )}

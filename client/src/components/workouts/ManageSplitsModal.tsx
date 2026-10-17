@@ -67,11 +67,22 @@ export const ManageSplitsModal: React.FC<ManageSplitsModalProps> = ({
               >
                 <div className="flex items-start justify-between gap-3 mb-2.5">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="font-bold text-text-primary text-base">{split.name}</h4>
                       {isCurrentlyActive && (
                         <span className="badge bg-accent text-background font-black text-[10px] px-2 py-0.5">
                           ACTIVE SPLIT
+                        </span>
+                      )}
+                      {split.level && (
+                        <span className={cn(
+                          "badge text-[10px] font-bold uppercase px-2 py-0.5",
+                          split.level === 'beginner' && "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
+                          split.level === 'intermediate' && "bg-blue-500/15 text-blue-400 border border-blue-500/30",
+                          split.level === 'advanced' && "bg-purple-500/15 text-purple-400 border border-purple-500/30",
+                          split.level === 'pro' && "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                        )}>
+                          {split.level}
                         </span>
                       )}
                       {split.isPreset ? (
@@ -134,7 +145,7 @@ export const ManageSplitsModal: React.FC<ManageSplitsModalProps> = ({
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                     {(split.days || []).map((day, dIdx) => (
                       <div
                         key={dIdx}
@@ -147,12 +158,17 @@ export const ManageSplitsModal: React.FC<ManageSplitsModalProps> = ({
                           <div className="font-bold text-text-primary mt-0.5 truncate" title={day.name}>
                             {day.name}
                           </div>
+                          {(day.muscleGroups || day.targetMuscleGroups) && (
+                            <div className="text-[10px] text-text-muted mt-1 line-clamp-1" title={(day.muscleGroups || day.targetMuscleGroups)?.join(', ')}>
+                              {(day.muscleGroups || day.targetMuscleGroups)?.join(', ')}
+                            </div>
+                          )}
                         </div>
-                        <div className="text-[11px] text-text-muted mt-2">
+                        <div className="text-[11px] text-text-muted mt-2 pt-1 border-t border-border/30">
                           {day.type === 'rest' ? (
                             <span className="text-text-muted italic">Rest Day</span>
                           ) : (
-                            <span>{day.exercises?.length || 0} exercises</span>
+                            <span className="text-accent/90 font-medium">{day.exercises?.length || 0} exercises</span>
                           )}
                         </div>
                       </div>
