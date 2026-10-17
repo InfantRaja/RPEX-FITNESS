@@ -314,6 +314,9 @@ const WorkoutsPage: React.FC = () => {
   const [isManageSplitsModalOpen, setIsManageSplitsModalOpen] = useState(false);
   const [editingSplit, setEditingSplit] = useState<Split | null>(null);
 
+  // Quick edit duration state on workout cards
+  const [quickEditingDuration, setQuickEditingDuration] = useState<{ id: string; minutes: number } | null>(null);
+
   // Live Workout Timer State
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
@@ -430,9 +433,10 @@ const WorkoutsPage: React.FC = () => {
     defaultValues: {
       title: '',
       type: 'strength',
-      duration: 1,
+      duration: 45,
       caloriesBurned: undefined as number | undefined,
       date: format(new Date(), 'yyyy-MM-dd'),
+      time: format(new Date(), 'HH:mm'),
       notes: '',
       location: 'gym',
       rating: undefined as number | undefined,
@@ -440,10 +444,28 @@ const WorkoutsPage: React.FC = () => {
     },
   });
 
+  const watchDuration = watch('duration');
+
   const { fields: exerciseFields, append: appendExercise, remove: removeExercise } = useFieldArray({
     control,
     name: 'exercises',
   });
+
+  // Helper to change duration and sync timer display simultaneously
+  const handleDurationChange = (newMinutes: number) => {
+    const mins = Math.max(1, Math.round(newMinutes));
+    setValue('duration', mins);
+    const secs = mins * 60;
+    accumulatedRef.current = secs;
+    startTimeRef.current = isTimerActive ? Date.now() : null;
+    setTimerSeconds(secs);
+  };
+
+  const adjustTimerMinutes = (deltaMinutes: number) => {
+    const currentMins = Number(watchDuration) || (timerSeconds > 0 ? Math.ceil(timerSeconds / 60) : 45);
+    const nextMins = Math.max(1, currentMins + deltaMinutes);
+    handleDurationChange(nextMins);
+  };
 
   // Accurate drift-free stopwatch timer effect
   useEffect(() => {
@@ -487,7 +509,7 @@ const WorkoutsPage: React.FC = () => {
     accumulatedRef.current = 0;
     startTimeRef.current = null;
     setTimerSeconds(0);
-    setValue('duration', 1);
+    setValue('duration', 0);
   };
 
   const openCreate = () => {
@@ -501,9 +523,10 @@ const WorkoutsPage: React.FC = () => {
     reset({
       title: '',
       type: 'strength',
-      duration: 1,
+      duration: 45,
       caloriesBurned: undefined,
       date: format(new Date(), 'yyyy-MM-dd'),
+      time: format(new Date(), 'HH:mm'),
       notes: '',
       location: 'gym',
       rating: undefined,
@@ -564,9 +587,10 @@ const WorkoutsPage: React.FC = () => {
     reset({
       title: day.name,
       type: day.type === 'rest' ? 'other' : day.type,
-      duration: 1,
+      duration: 45,
       caloriesBurned: undefined,
       date: format(new Date(), 'yyyy-MM-dd'),
+      time: format(new Date(), 'HH:mm'),
       notes: day.notes || '',
       location: 'gym',
       rating: undefined,
@@ -579,17 +603,22 @@ const WorkoutsPage: React.FC = () => {
   const openEdit = (workout: Workout) => {
     setEditingWorkout(workout);
 
-    const savedDurationSecs = (workout.duration || 0) * 60;
+    const savedDuration = workout.duration || 45;
+    const savedDurationSecs = savedDuration * 60;
     accumulatedRef.current = savedDurationSecs;
     setTimerSeconds(savedDurationSecs);
     setIsTimerActive(false);
 
+    const workoutDate = new Date(workout.date);
+    const isValidDate = !isNaN(workoutDate.getTime());
+
     reset({
       title: workout.title,
       type: workout.type,
-      duration: workout.duration,
+      duration: savedDuration,
       caloriesBurned: workout.caloriesBurned,
-      date: format(new Date(workout.date), 'yyyy-MM-dd'),
+      date: isValidDate ? format(workoutDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+      time: isValidDate ? format(workoutDate, 'HH:mm') : format(new Date(), 'HH:mm'),
       notes: workout.notes || '',
       location: workout.location || 'gym',
       rating: workout.rating,
@@ -639,18 +668,36 @@ const WorkoutsPage: React.FC = () => {
         })),
       }));
 
-    const finalDuration = timerSeconds > 0
-      ? Math.max(1, Math.ceil(timerSeconds / 60))
-      : Number(formData.duration) || 60;
+    // Prioritize user entered/edited duration from the form input, fallback to timer
+    const formDuration = Number(formData.duration);
+    const finalDuration = !isNaN(formDuration) && formDuration > 0
+      ? formDuration
+      : (timerSeconds > 0 ? Math.max(1, Math.ceil(timerSeconds / 60)) : 45);
 
-    const payload = {
+    // Combine date and time
+    let finalDate = new Date();
+    if (formData.date) {
+      const timePart = formData.time && String(formData.time).trim().length > 0
+        ? String(formData.time).trim()
+        : format(new Date(), 'HH:mm');
+      const combined = new Date(`${formData.date}T${timePart}:00`);
+      if (!isNaN(combined.getTime())) {
+        finalDate = combined;
+      } else {
+        finalDate = new Date(formData.date);
+      }
+    }
+
+    const payload: any = {
       ...formData,
       title: formData.title.trim(),
+      date: finalDate.toISOString(),
       duration: finalDuration,
       caloriesBurned: formData.caloriesBurned ? Number(formData.caloriesBurned) : undefined,
       rating: formData.rating ? Number(formData.rating) : undefined,
       exercises: cleanedExercises,
     };
+    delete payload.time;
 
     setIsTimerActive(false);
 
@@ -928,10 +975,20 @@ const WorkoutsPage: React.FC = () => {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-text-primary text-base truncate">{workout.title}</h3>
-                        <p className="text-xs text-text-muted mt-0.5 flex items-center gap-1.5">
+                        <p className="text-xs text-text-muted mt-0.5 flex items-center gap-1.5 flex-wrap">
                           <span>{formatRelativeDate(workout.date)}</span>
                           <span>•</span>
                           <span>{format(new Date(workout.date), 'MMM d, yyyy')}</span>
+                          {(() => {
+                            const d = new Date(workout.date);
+                            const hasTime = !isNaN(d.getTime()) && (d.getHours() !== 0 || d.getMinutes() !== 0);
+                            return hasTime ? (
+                              <>
+                                <span>•</span>
+                                <span className="text-text-secondary font-medium">{format(d, 'h:mm a')}</span>
+                              </>
+                            ) : null;
+                          })()}
                         </p>
                       </div>
                       <div className="flex items-center gap-1 ml-2">
@@ -954,9 +1011,78 @@ const WorkoutsPage: React.FC = () => {
 
                     {/* Metrics Bar */}
                     <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted mb-3.5">
-                      <span className="flex items-center gap-1 bg-surface px-2.5 py-1 rounded-lg border border-border/50">
-                        <Clock className="w-3.5 h-3.5 text-accent" /> {formatDuration(workout.duration)}
-                      </span>
+                      {quickEditingDuration?.id === workout._id ? (
+                        <div className="flex items-center gap-1 bg-surface-elevated/90 p-1 rounded-xl border border-accent/40 shadow-sm animate-in fade-in duration-150">
+                          <Clock className="w-3.5 h-3.5 text-accent ml-1" />
+                          <button
+                            type="button"
+                            onClick={() => setQuickEditingDuration(prev => prev ? { ...prev, minutes: Math.max(1, prev.minutes - 5) } : null)}
+                            className="w-5 h-5 rounded flex items-center justify-center bg-background border border-border text-text-muted hover:text-text-primary text-xs font-bold"
+                            title="-5 minutes"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min="1"
+                            max="999"
+                            value={quickEditingDuration.minutes}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              if (!isNaN(val)) {
+                                setQuickEditingDuration(prev => prev ? { ...prev, minutes: Math.max(1, val) } : null);
+                              }
+                            }}
+                            className="w-12 text-center text-xs font-bold bg-background border border-border rounded py-0.5 text-text-primary"
+                          />
+                          <span className="text-[10px] text-text-muted font-medium">m</span>
+                          <button
+                            type="button"
+                            onClick={() => setQuickEditingDuration(prev => prev ? { ...prev, minutes: prev.minutes + 5 } : null)}
+                            className="w-5 h-5 rounded flex items-center justify-center bg-background border border-border text-text-muted hover:text-text-primary text-xs font-bold"
+                            title="+5 minutes"
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (quickEditingDuration.minutes > 0) {
+                                updateMutation.mutate({
+                                  id: workout._id,
+                                  data: { duration: quickEditingDuration.minutes }
+                                });
+                                setQuickEditingDuration(null);
+                              }
+                            }}
+                            className="p-1 rounded bg-accent text-background hover:bg-accent/90 transition-colors ml-0.5"
+                            title="Save workout duration"
+                          >
+                            <Check className="w-3 h-3 font-bold" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setQuickEditingDuration(null)}
+                            className="p-1 rounded bg-background hover:bg-surface text-text-muted hover:text-text-primary transition-colors"
+                            title="Cancel"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setQuickEditingDuration({ id: workout._id, minutes: workout.duration || 45 })}
+                          className="flex items-center gap-1.5 bg-surface hover:bg-accent/10 hover:border-accent/40 transition-all px-2.5 py-1 rounded-lg border border-border/50 text-text-muted hover:text-accent group/dur"
+                          title="Click to quickly edit workout duration"
+                        >
+                          <Clock className="w-3.5 h-3.5 text-accent" />
+                          <span className="font-semibold text-text-secondary group-hover/dur:text-accent">
+                            {formatDuration(workout.duration)}
+                          </span>
+                          <Edit className="w-2.5 h-2.5 text-accent opacity-0 group-hover/dur:opacity-100 transition-opacity" />
+                        </button>
+                      )}
                       {workout.caloriesBurned ? (
                         <span className="flex items-center gap-1 bg-surface px-2.5 py-1 rounded-lg border border-border/50">
                           <Flame className="w-3.5 h-3.5 text-warning" /> {workout.caloriesBurned} kcal
@@ -1145,7 +1271,42 @@ const WorkoutsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
+            <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto justify-end">
+              <div className="flex items-center gap-1 bg-surface/80 p-1 rounded-xl border border-border">
+                <button
+                  type="button"
+                  onClick={() => adjustTimerMinutes(-15)}
+                  className="px-2 py-1 text-xs font-semibold rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors"
+                  title="Subtract 15 minutes"
+                >
+                  -15m
+                </button>
+                <button
+                  type="button"
+                  onClick={() => adjustTimerMinutes(-5)}
+                  className="px-2 py-1 text-xs font-semibold rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors"
+                  title="Subtract 5 minutes"
+                >
+                  -5m
+                </button>
+                <button
+                  type="button"
+                  onClick={() => adjustTimerMinutes(5)}
+                  className="px-2 py-1 text-xs font-semibold rounded-lg text-text-muted hover:text-accent hover:bg-surface-elevated transition-colors"
+                  title="Add 5 minutes"
+                >
+                  +5m
+                </button>
+                <button
+                  type="button"
+                  onClick={() => adjustTimerMinutes(15)}
+                  className="px-2 py-1 text-xs font-semibold rounded-lg text-text-muted hover:text-accent hover:bg-surface-elevated transition-colors"
+                  title="Add 15 minutes"
+                >
+                  +15m
+                </button>
+              </div>
+
               <Button
                 type="button"
                 size="sm"
@@ -1184,34 +1345,6 @@ const WorkoutsPage: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="label">Date</label>
-              <input type="date" className="input" {...register('date')} />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="label mb-0">Duration (minutes)</label>
-                {isTimerActive && (
-                  <span className="text-[10px] text-accent font-semibold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                    Live syncing
-                  </span>
-                )}
-              </div>
-              <Input
-                type="number"
-                leftIcon={<Clock className="w-4 h-4" />}
-                {...register('duration', { valueAsNumber: true })}
-              />
-            </div>
-            <div>
-              <Input
-                label="Calories Burned (optional)"
-                type="number"
-                leftIcon={<Flame className="w-4 h-4" />}
-                {...register('caloriesBurned', { valueAsNumber: true })}
-              />
-            </div>
-            <div>
               <label className="label">Location</label>
               <select className="input" {...register('location')}>
                 <option value="gym">Gym</option>
@@ -1219,6 +1352,74 @@ const WorkoutsPage: React.FC = () => {
                 <option value="outdoor">Outdoor</option>
                 <option value="other">Other</option>
               </select>
+            </div>
+            <div>
+              <label className="label">Workout Date</label>
+              <input type="date" className="input" {...register('date')} />
+            </div>
+            <div>
+              <label className="label">Start Time</label>
+              <input type="time" className="input" {...register('time')} />
+            </div>
+
+            {/* Duration (minutes) with Quick Presets */}
+            <div className="col-span-1 sm:col-span-2 bg-surface/40 p-3.5 rounded-xl border border-border">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <label className="label mb-0">Workout Duration (minutes)</label>
+                  {isTimerActive && (
+                    <span className="text-[10px] text-accent font-semibold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                      Live timer syncing
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[11px] text-text-muted font-medium">Quick Presets:</span>
+                  {[20, 30, 45, 60, 75, 90].map(mins => (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => handleDurationChange(mins)}
+                      className={cn(
+                        "px-2 py-0.5 rounded-md text-xs font-bold transition-all border",
+                        Number(watchDuration) === mins
+                          ? "bg-accent text-background border-accent shadow-sm"
+                          : "bg-surface text-text-muted border-border hover:border-accent/40 hover:text-text-primary"
+                      )}
+                    >
+                      {mins}m
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <Input
+                type="number"
+                min="1"
+                max="1440"
+                placeholder="Duration in minutes (e.g. 45)"
+                leftIcon={<Clock className="w-4 h-4 text-accent" />}
+                {...register('duration', {
+                  valueAsNumber: true,
+                  onChange: (e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val) && val > 0) {
+                      const secs = val * 60;
+                      setTimerSeconds(secs);
+                      accumulatedRef.current = secs;
+                    }
+                  }
+                })}
+              />
+            </div>
+
+            <div>
+              <Input
+                label="Calories Burned (optional)"
+                type="number"
+                leftIcon={<Flame className="w-4 h-4" />}
+                {...register('caloriesBurned', { valueAsNumber: true })}
+              />
             </div>
             <div>
               <label className="label">Rating (optional)</label>
