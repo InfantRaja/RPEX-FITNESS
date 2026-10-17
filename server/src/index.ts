@@ -29,6 +29,7 @@ const PORT = process.env.PORT || 5000;
 // Security middleware
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
 }));
 
 // Rate limiting
