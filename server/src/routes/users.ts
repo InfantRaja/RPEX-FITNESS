@@ -328,11 +328,18 @@ router.put('/onboarding', async (req: AuthRequest, res: Response, next: NextFunc
       // ignore
     }
 
-    const updates: any = {
-      onboarding: { ...onboardingData, completed: true }
+    const onboardingObj: any = {
+      ...onboardingData,
+      completed: true,
     };
     if (targets) {
-      updates['onboarding.nutritionTargets'] = targets;
+      onboardingObj.nutritionTargets = targets;
+    }
+
+    const updates: any = {
+      onboarding: onboardingObj,
+    };
+    if (targets) {
       updates.nutritionTargets = targets;
     }
 
