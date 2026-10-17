@@ -328,28 +328,26 @@ router.put('/onboarding', async (req: AuthRequest, res: Response, next: NextFunc
       // ignore
     }
 
-    const onboardingObj: any = {
+    const user = await User.findById(req.user?._id);
+    if (!user) throw new AppError('User not found.', 404);
+
+    const existingOnboarding = user.onboarding
+      ? (typeof (user.onboarding as any).toObject === 'function' ? (user.onboarding as any).toObject() : user.onboarding)
+      : {};
+
+    const mergedOnboarding: any = {
+      ...existingOnboarding,
       ...onboardingData,
       completed: true,
     };
+
     if (targets) {
-      onboardingObj.nutritionTargets = targets;
+      mergedOnboarding.nutritionTargets = targets;
     }
 
-    const updates: any = {
-      onboarding: onboardingObj,
-    };
-    if (targets) {
-      updates.nutritionTargets = targets;
-    }
+    user.onboarding = mergedOnboarding;
+    await user.save();
 
-    const user = await User.findByIdAndUpdate(
-      req.user?._id,
-      { $set: updates },
-      { new: true, runValidators: true }
-    );
-
-    if (!user) throw new AppError('User not found.', 404);
     res.json({ success: true, message: 'Onboarding completed.', user });
   } catch (error) {
     next(error);
