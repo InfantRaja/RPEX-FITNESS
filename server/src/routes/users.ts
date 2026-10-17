@@ -346,6 +346,7 @@ router.put('/onboarding', async (req: AuthRequest, res: Response, next: NextFunc
     }
 
     user.onboarding = mergedOnboarding;
+    user.markModified('onboarding');
     await user.save();
 
     res.json({ success: true, message: 'Onboarding completed.', user });
