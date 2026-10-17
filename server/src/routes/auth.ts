@@ -198,7 +198,8 @@ router.get(
   (req: any, res: Response) => {
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
     const token = generateToken(req.user._id.toString());
-    res.redirect(`${clientUrl}/auth/callback?token=${token}`);
+    const isNew = !req.user.onboarding || !req.user.onboarding.completed;
+    res.redirect(`${clientUrl}/auth/callback?token=${token}${isNew ? '&isNew=true' : ''}`);
   }
 );
 

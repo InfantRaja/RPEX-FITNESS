@@ -46,9 +46,13 @@ const LoginPage: React.FC = () => {
 
   const onSubmit = async (data: LoginForm) => {
     try {
-      await login(data.email, data.password);
+      const user = await login(data.email, data.password);
       success('Welcome back!', 'Logged in successfully.');
-      navigate('/dashboard');
+      if (!user?.onboarding?.completed) {
+        navigate('/onboarding');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       toastError('Login failed', getErrorMessage(err));
     }

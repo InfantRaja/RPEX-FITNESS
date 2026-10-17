@@ -31,8 +31,11 @@ const queryClient = new QueryClient({
   },
 });
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+const ProtectedRoute: React.FC<{ children: React.ReactNode; allowIncompleteOnboarding?: boolean }> = ({
+  children,
+  allowIncompleteOnboarding = false,
+}) => {
+  const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -47,11 +50,15 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return <Navigate to="/login" replace />;
   }
 
+  if (!allowIncompleteOnboarding && !user?.onboarding?.completed) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   return <>{children}</>;
 };
 
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -62,6 +69,9 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }
 
   if (isAuthenticated) {
+    if (!user?.onboarding?.completed) {
+      return <Navigate to="/onboarding" replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -99,7 +109,7 @@ export const App: React.FC = () => {
               <Route
                 path="/onboarding"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowIncompleteOnboarding={true}>
                     <OnboardingPage />
                   </ProtectedRoute>
                 }

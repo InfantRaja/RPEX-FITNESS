@@ -3,6 +3,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import User from '../models/User';
 import Workout from '../models/Workout';
 import { AppError } from '../middleware/errorHandler';
+import { calculatePersonalizedNutrition } from '../services/nutritionCalculator';
 
 const router = Router();
 
@@ -320,9 +321,24 @@ router.get('/:id/following', async (req: AuthRequest, res: Response, next: NextF
 router.put('/onboarding', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const onboardingData = req.body;
+    let targets;
+    try {
+      targets = calculatePersonalizedNutrition(onboardingData);
+    } catch (calcErr) {
+      // ignore
+    }
+
+    const updates: any = {
+      onboarding: { ...onboardingData, completed: true }
+    };
+    if (targets) {
+      updates['onboarding.nutritionTargets'] = targets;
+      updates.nutritionTargets = targets;
+    }
+
     const user = await User.findByIdAndUpdate(
       req.user?._id,
-      { $set: { onboarding: { ...onboardingData, completed: true } } },
+      { $set: updates },
       { new: true, runValidators: true }
     );
 

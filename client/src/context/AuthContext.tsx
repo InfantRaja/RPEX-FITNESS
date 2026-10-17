@@ -3,12 +3,12 @@ import { authApi, userApi } from '../lib/api';
 import type { User, AuthState } from '../types';
 
 interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  register: (name: string, email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   updateUser: (user: Partial<User>) => void;
-  handleOAuthCallback: (token: string) => Promise<void>;
+  handleOAuthCallback: (token: string) => Promise<User>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -69,16 +69,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, [setAuth]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     const response = await authApi.login({ email, password });
     const { user, token } = response.data;
     setAuth(user, token);
+    return user;
   };
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (name: string, email: string, password: string): Promise<User> => {
     const response = await authApi.register({ name, email, password });
     const { user, token } = response.data;
     setAuth(user, token);
+    return user;
   };
 
   const logout = async () => {
@@ -106,11 +108,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const handleOAuthCallback = async (token: string) => {
+  const handleOAuthCallback = async (token: string): Promise<User> => {
     localStorage.setItem(TOKEN_KEY, token);
     const response = await authApi.me();
     const user = response.data.user;
     setAuth(user, token);
+    return user;
   };
 
   return (

@@ -22,9 +22,14 @@ const AuthCallbackPage: React.FC = () => {
 
     if (token) {
       handleOAuthCallback(token)
-        .then(() => {
-          showSuccess('Successfully logged in!');
-          navigate('/dashboard');
+        .then((user) => {
+          showSuccess('Successfully authenticated!');
+          const isNewParam = searchParams.get('isNew') === 'true';
+          if (isNewParam || !user?.onboarding?.completed) {
+            navigate('/onboarding');
+          } else {
+            navigate('/dashboard');
+          }
         })
         .catch((err) => {
           showError('Failed to complete authentication: ' + err.message);
