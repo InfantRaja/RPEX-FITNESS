@@ -4,20 +4,25 @@
 
 export interface Onboarding {
   completed: boolean;
+  gender?: 'male' | 'female' | 'other';
   height?: number;
   weight?: number;
+  targetWeight?: number;
   age?: number;
   dateOfBirth?: string;
   unitSystem: 'metric' | 'imperial';
-  fitnessExperience: 'beginner' | 'intermediate' | 'advanced';
-  fitnessGoal: 'muscle_building' | 'fat_loss' | 'strength' | 'weight_gain' | 'maintenance' | 'general_fitness';
+  activityLevel?: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extra_active';
+  fitnessExperience: 'beginner' | 'intermediate' | 'advanced' | 'pro';
+  fitnessGoal: 'muscle_building' | 'fat_loss' | 'strength' | 'weight_gain' | 'maintenance' | 'general_fitness' | 'body_recomposition';
   workoutLocation: 'gym' | 'home' | 'both';
   availableEquipment: string[];
   trainingDaysPerWeek: number;
-  dietaryPreference: 'none' | 'vegetarian' | 'vegan' | 'keto' | 'paleo' | 'mediterranean';
+  dietaryPreference: 'none' | 'vegetarian' | 'vegan' | 'eggetarian' | 'non_vegetarian' | 'keto' | 'paleo' | 'mediterranean';
   foodAllergies: string[];
   preferredLanguage: string;
-  mealBudget?: number;
+  mealsPerDay?: number;
+  mealBudget?: string | number;
+  country?: string;
 }
 
 export interface User {
@@ -33,6 +38,8 @@ export interface User {
   followersCount?: number;
   followingCount?: number;
   onboarding?: Onboarding;
+  nutritionTargets?: NutritionTargets;
+  savedMealPlan?: PlannedMeal[];
   preferences?: {
     theme?: 'dark' | 'light';
     units?: 'metric' | 'imperial';
@@ -219,6 +226,89 @@ export interface NutritionLog {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface NutritionTargets {
+  bmr: number;
+  tdee: number;
+  targetCalories: number;
+  maintenanceCalories: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+  waterMl: number;
+  proteinPerMeal: number;
+  formulaExplanation: string;
+  goalAdjustmentLabel: string;
+  macrosRatio?: {
+    proteinPct: number;
+    carbsPct: number;
+    fatPct: number;
+  };
+  caloriesFrom?: {
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+  lastCalculatedAt?: string;
+}
+
+export interface PlannedMealItem {
+  name: string;
+  servingSize: number;
+  servingUnit: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  notes?: string;
+}
+
+export interface PlannedMeal {
+  mealType: string;
+  name: string;
+  suggestedTime?: string;
+  totalCalories: number;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFat: number;
+  foods: PlannedMealItem[];
+}
+
+export interface DatabaseFoodItem {
+  id: string;
+  name: string;
+  category: 'protein' | 'carbs' | 'fats' | 'dairy' | 'vegetables' | 'fruits' | 'indian_staple' | 'beverage';
+  servingSize: number;
+  servingUnit: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  dietaryPreference: 'vegetarian' | 'vegan' | 'eggetarian' | 'non_vegetarian';
+  isAffordable: boolean;
+  region: 'indian' | 'global';
+  commonMeasure?: string;
+}
+
+export interface NutritionTrendsData {
+  days: Array<{
+    date: string;
+    dayLabel: string;
+    calories: number;
+    targetCalories: number;
+    protein: number;
+    targetProtein: number;
+    waterIntake: number;
+    calorieAdherencePct: number;
+    proteinAdherencePct: number;
+  }>;
+  averages: {
+    avgCalories: number;
+    avgProtein: number;
+    avgWater: number;
+    adherenceScore: number;
+  };
 }
 
 // =====================

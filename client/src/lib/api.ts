@@ -109,6 +109,18 @@ export const nutritionApi = {
   update: (id: string, data: any) => api.put(`/nutrition/${id}`, data),
   delete: (id: string) => api.delete(`/nutrition/${id}`),
   getStats: () => api.get('/nutrition/stats/summary'),
+  getCalculator: () => api.get('/nutrition/calculator'),
+  recalculateTargets: (data: any) => api.post('/nutrition/recalculate', data),
+  getMealPlan: (params?: any) => api.get('/nutrition/meal-plan', { params }),
+  generateMealPlan: (data?: any) => api.post('/nutrition/meal-plan/generate', data),
+  logPlannedMeal: (meal: any) => api.post('/nutrition/meal-plan/log-meal', { meal }),
+  searchFoods: (params?: { query?: string; category?: string; dietaryPreference?: string; isAffordable?: boolean }) =>
+    api.get('/nutrition/foods', { params }),
+  logWater: (amountMl: number) => api.post('/nutrition/water', { amountMl }),
+  quickLogFood: (data: { mealType: string; food: any }) => api.post('/nutrition/quick-log', data),
+  deleteMealItem: (mealIndex: number, itemIndex: number) =>
+    api.delete(`/nutrition/meals/${mealIndex}/item/${itemIndex}`),
+  getTrends: () => api.get('/nutrition/progress/trends'),
 };
 
 // Progress API

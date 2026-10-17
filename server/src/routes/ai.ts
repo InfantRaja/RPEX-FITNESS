@@ -7,6 +7,10 @@ import User from '../models/User';
 import { AppError } from '../middleware/errorHandler';
 import { generateAIResponse, validateGeminiApiKey } from '../services/gemini';
 
+import NutritionLog from '../models/NutritionLog';
+import Split from '../models/Split';
+import { calculatePersonalizedNutrition } from '../services/nutritionCalculator';
+
 const router = Router();
 router.use(authenticate);
 
@@ -137,16 +141,71 @@ router.post('/chat', async (req: AuthRequest, res: Response, next: NextFunction)
       language,
     });
 
-    // Build context for AI
+    // Build comprehensive context for AI Nutrition & Fitness Coach
+    let targets = (user as any).nutritionTargets;
+    if (!targets || !targets.targetCalories) {
+      try {
+        targets = calculatePersonalizedNutrition(user.onboarding);
+      } catch (err) {
+        // fallback
+      }
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(todayStart);
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const todayLog = await NutritionLog.findOne({
+      userId: req.user?._id,
+      date: { $gte: todayStart, $lte: todayEnd }
+    });
+
+    const activeSplit = await Split.findOne({ userId: req.user?._id, isActive: true });
+
+    const consumedCalories = todayLog ? todayLog.totalCalories : 0;
+    const consumedProtein = todayLog ? todayLog.totalProtein : 0;
+    const consumedCarbs = todayLog ? todayLog.totalCarbs : 0;
+    const consumedFat = todayLog ? todayLog.totalFat : 0;
+    const waterIntake = todayLog?.waterIntake || 0;
+
+    const targetCal = targets ? (targets.targetCalories || targets.dailyCalories) : 2200;
+    const remainingCalories = targets ? Math.max(0, targetCal - consumedCalories) : 0;
+    const remainingProtein = targets ? Math.max(0, targets.proteinGrams - consumedProtein) : 0;
+
     const userContext = {
       name: user.name,
       fitnessGoal: user.onboarding.fitnessGoal,
       experience: user.onboarding.fitnessExperience,
       dietaryPreference: user.onboarding.dietaryPreference,
+      foodAllergies: user.onboarding.foodAllergies,
       weight: user.onboarding.weight,
       height: user.onboarding.height,
+      targetWeight: (user.onboarding as any).targetWeight,
+      mealBudget: (user.onboarding as any).mealBudget,
+      country: (user.onboarding as any).country,
       workoutLocation: user.onboarding.workoutLocation,
       equipment: user.onboarding.availableEquipment,
+      nutritionTargets: targets ? {
+        dailyCalories: targetCal,
+        maintenanceCalories: targets.maintenanceCalories || targets.tdee,
+        proteinGrams: targets.proteinGrams,
+        carbsGrams: targets.carbsGrams,
+        fatGrams: targets.fatGrams,
+        bmr: targets.bmr,
+        tdee: targets.tdee,
+        waterLiters: Number(((targets.waterMl || 3000) / 1000).toFixed(1))
+      } : undefined,
+      todayNutrition: {
+        consumedCalories,
+        consumedProtein,
+        consumedCarbs,
+        consumedFat,
+        waterIntakeMl: waterIntake,
+        remainingCalories,
+        remainingProtein,
+      },
+      activeWorkoutSplit: activeSplit ? activeSplit.name : 'Not set',
     };
 
     // Get recent chat history (last 10 messages)
